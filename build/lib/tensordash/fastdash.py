@@ -2,6 +2,9 @@ import requests
 import json
 import fastai
 from fastai.torch_core import Any, Tensor, MetricsList, ifnone
+#from fastai.basic_data import *
+#from fastai.callback import *
+#from fastai.data_block import *
 from fastai.basic_train import LearnerCallback, Learner
 import getpass
 
@@ -52,6 +55,7 @@ class SendDataToFirebase(object):
 SendData = SendDataToFirebase()
 
 class Fastdash(LearnerCallback):
+    "A `LearnerCallback` that saves history of metrics while training `learn` into CSV `filename`."
     def __init__(self, learn:Learner, filename: str = 'history', append: bool = False, ModelName = 'Sample_model', email = 'None', password ='None'):
 
         super().__init__(learn)
@@ -86,11 +90,13 @@ class Fastdash(LearnerCallback):
 
 
     def on_train_begin(self, **kwargs: Any) -> None:
+
         SendData.updateRunningStatus(key = self.key, auth_token = self.auth_token, ModelName = self.ModelName)
         SendData.sendMessage(key = self.key, auth_token = self.auth_token, params = (-1, 0, 0, 0), ModelName = self.ModelName)
     
         
     def on_epoch_end(self, epoch: int, smooth_loss: Tensor, last_metrics: MetricsList, **kwargs: Any) -> bool:
+        "Add a line with `epoch` number, `smooth_loss` and `last_metrics`."
         last_metrics = ifnone(last_metrics, [])
         stats = [str(stat) if isinstance(stat, int) else '#na#' if stat is None else f'{stat:.6f}'
                  for name, stat in zip(self.learn.recorder.names, [epoch, smooth_loss] + last_metrics)]
@@ -99,6 +105,7 @@ class Fastdash(LearnerCallback):
 
 
     def on_train_end(self, **kwargs: Any) -> None:  
+        
         SendData.updateCompletedStatus(key = self.key, auth_token = self.auth_token, ModelName = self.ModelName)
 
     def sendCrash(self):
